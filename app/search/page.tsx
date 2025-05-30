@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Calendar, User, Plane, Mail, Loader2, Clock, DollarSign } from "lucide-react"
+import { Search, Plane, Loader2 } from "lucide-react"
 import { apiService, type Flight } from "@/lib/api"
 import { useToastContext } from "@/components/ui/toast-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,7 +12,6 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useState({
     origin: '',
     destination: '',
-    date: ''
   })
   const [flights, setFlights] = useState<Flight[]>([])
   const [loading, setLoading] = useState(false)
@@ -25,16 +24,22 @@ export default function SearchPage() {
     setLoading(true)
     try {
       const results = await apiService.searchFlights({
-        fromCity: searchParams.origin,
-        toCity: searchParams.destination
+        fromCity: searchParams.origin.toLowerCase(),
+        toCity: searchParams.destination.toLowerCase()
       })
       setFlights(results)
       setHasSearched(true)
       if (results.length === 0) {
         toast({
           title: "No flights found",
-          description: "Please try different search criteria.",
+          description: "Please try different search criteria. Note: Only US domestic flights for today are supported.",
           type: "info"
+        })
+      } else {
+         toast({
+          title: "Flights Found",
+          description: `Found ${results.length} flights.`,
+          type: "success"
         })
       }
     } catch (error) {
@@ -84,7 +89,7 @@ export default function SearchPage() {
       <Card>
         <CardContent className="p-6">
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative">
                 <label htmlFor="origin" className="block text-sm font-medium text-gray-700 mb-1">
                   From
@@ -121,22 +126,6 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              <div className="relative">
-                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    id="date"
-                    value={searchParams.date}
-                    onChange={(e) => setSearchParams(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                </div>
-              </div>
             </div>
 
             <Button
@@ -184,6 +173,7 @@ export default function SearchPage() {
           ) : (
             <div className="grid gap-4">
               {flights.map((flight) => (
+                flight && flight.flight && flight.airline && flight.aircraft && flight.departure && flight.arrival ? (
                 <Card key={flight.flight.iata} className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -202,7 +192,6 @@ export default function SearchPage() {
 
                           <div className="flex flex-col items-center space-y-1">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Clock className="h-4 w-4" />
                               {calculateDuration(flight.departure.scheduled, flight.arrival.scheduled)}
                             </div>
                             <div className="w-full border-t border-dashed"></div>
@@ -219,10 +208,8 @@ export default function SearchPage() {
                       <div className="flex flex-col items-end space-y-4 lg:min-w-[200px]">
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-2xl font-bold">
-                            <DollarSign className="h-5 w-5" />
-                            299.99
+
                           </div>
-                          <div className="text-sm text-muted-foreground">per person</div>
                         </div>
 
                         <Button
@@ -236,6 +223,7 @@ export default function SearchPage() {
                     </div>
                   </CardContent>
                 </Card>
+                 ) : null // Render nothing if flight data is incomplete
               ))}
             </div>
           )}
@@ -250,6 +238,7 @@ export default function SearchPage() {
               Fill in your travel details above and click "Search Flights" to see available options
             </CardDescription>
           </CardHeader>
+
         </Card>
       )}
     </div>

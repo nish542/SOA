@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const API_BASE_URL = 'http://localhost:8081/api';
 
@@ -93,7 +93,6 @@ class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
-    //dummy - actual API call to backend
     const response = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
@@ -110,11 +109,23 @@ class ApiService {
   }
 
   async searchFlights(params: { fromCity: string; toCity: string }) {
-    const response = await axios.post(`${API_BASE_URL}/flights/search`, {
-      fromCity: params.fromCity,
-      toCity: params.toCity
-    });
-    return response.data.flights;
+    try {
+      const response = await axios.post(`${API_BASE_URL}/flights/search`, {
+        fromCity: params.fromCity,
+        toCity: params.toCity
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to search flights');
+      }
+      
+      return response.data.flights || [];
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
+    }
   }
 
   async createBooking(booking: BookingRequest) {

@@ -1,13 +1,13 @@
 "use client"
-
 import { useState } from "react"
-import { Search, Calendar, User, Plane, Mail, Loader2 } from "lucide-react"
-import { apiService, type Booking } from "@/lib/api"
+import { Search, Plane, Loader2, Mail } from "lucide-react"
+import { apiService, type Booking, type Flight } from "@/lib/api"
 import { useToastContext } from "@/components/ui/toast-provider"
 
 export default function BookingsPage() {
   const [searchEmail, setSearchEmail] = useState("")
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [flights, setFlights] = useState<Flight[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToastContext()
 
@@ -18,6 +18,10 @@ export default function BookingsPage() {
     try {
       const results = await apiService.getBookingsByEmail(searchEmail)
       setBookings(results)
+      const flightIds = results.map(booking => booking.flightIata)
+      const flights = await apiService.getFlightsByIds(flightIds)
+      setFlights(flights)
+      
       if (results.length === 0) {
         toast({
           title: "No bookings found",
@@ -87,7 +91,6 @@ export default function BookingsPage() {
                   <div>
                     <h3 className="font-semibold">Flight {booking.flightIata}</h3>
                     <p className="text-sm text-gray-600">
-                      <Calendar className="inline-block w-4 h-4 mr-1" />
                       {new Date(booking.flightDate).toLocaleDateString()}
                     </p>
                   </div>
@@ -95,11 +98,9 @@ export default function BookingsPage() {
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <p className="text-sm text-gray-600">
-                      <User className="inline-block w-4 h-4 mr-1" />
                       {booking.passengerName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <Mail className="inline-block w-4 h-4 mr-1" />
                       {booking.passengerEmail}
                     </p>
                   </div>
