@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,18 +23,43 @@ interface FlightSearchProps {
   onSearchResults?: (flights: Flight[]) => void
 }
 
+interface BookingFormState {
+  passengerName: string;
+  passengerEmail: string;
+  phoneNumber: string;
+}
+
+// List of US domestic cities
+const US_CITIES = [
+  "New York",
+  "Los Angeles",
+  "Chicago",
+  "Miami",
+  "San Francisco",
+  "Boston",
+  "Seattle",
+  "Denver",
+  "Atlanta",
+  "Dallas",
+  "Houston",
+  "Phoenix",
+  "Las Vegas",
+  "Orlando",
+  "Detroit",
+  "Minneapolis",
+  "Philadelphia",
+  "Charlotte",
+  "Washington",
+  "Baltimore"
+];
+
 export function FlightSearch({ onSearchResults }: FlightSearchProps) {
   const [fromCity, setFromCity] = useState("")
   const [toCity, setToCity] = useState("")
-  const [departureDate, setDepartureDate] = useState("")
-  const [returnDate, setReturnDate] = useState("")
-  const [passengers, setPassengers] = useState("1")
   const [isLoading, setIsLoading] = useState(false)
-  const [cities, setCities] = useState<string[]>([])
-  const [loadingCities, setLoadingCities] = useState(true)
   const [flights, setFlights] = useState<Flight[]>([])
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
-  const [bookingForm, setBookingForm] = useState({
+  const [bookingForm, setBookingForm] = useState<BookingFormState>({
     passengerName: "",
     passengerEmail: "",
     phoneNumber: "",
@@ -58,6 +83,15 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
 
   const handleBooking = async () => {
     if (!selectedFlight) return
+
+    if (!selectedFlight.flight || !selectedFlight.departure || !selectedFlight.arrival || !selectedFlight.aircraft || !selectedFlight.airline) {
+        toast({
+            title: "Booking Failed",
+            description: "Flight data is incomplete.",
+            type: "error"
+        });
+        return;
+    }
 
     setIsBooking(true)
     try {
@@ -99,28 +133,6 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
     }
   }
 
-  useEffect(() => {
-    const loadCities = async () => {
-      try {
-        const supportedCities = await apiService.getSupportedCities()
-        setCities(supportedCities)
-      } catch (error) {
-        console.error("Failed to load cities:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load supported cities",
-          type: "error"
-        })
-        // Fallback cities if API fails
-        setCities(["New York", "London", "Paris", "Tokyo", "Sydney", "Los Angeles", "Dubai", "Singapore"])
-      } finally {
-        setLoadingCities(false)
-      }
-    }
-
-    loadCities()
-  }, [toast])
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -142,49 +154,35 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
       return
     }
 
-    if (!departureDate) {
-      toast({
-        title: "Error",
-        description: "Please select a departure date",
-        type: "error"
-      })
-      return
-    }
-
-    const numPassengers = parseInt(passengers)
-    if (isNaN(numPassengers) || numPassengers < 1 || numPassengers > 9) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid number of passengers (1-9)",
-        type: "error"
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
       const flights = await apiService.searchFlights({
-        fromCity,
-        toCity,
+        fromCity: fromCity.toLowerCase(),
+        toCity: toCity.toLowerCase(),
       })
 
-      setFlights(flights)
+      // Filter out flights with incomplete data for display and accurate count
+      const validFlights = flights.filter(flight =>
+        flight && flight.flight && flight.airline && flight.aircraft && flight.departure && flight.arrival
+      );
+
+      setFlights(validFlights);
 
       if (onSearchResults) {
-        onSearchResults(flights)
+        onSearchResults(validFlights);
       }
 
-      if (flights.length === 0) {
+      if (validFlights.length === 0) {
         toast({
           title: "No Flights Available",
-          description: "No flights found for your search criteria",
+          description: "No flights available for the selected route. Note: Only US domestic flights for today are supported.",
           type: "info"
         })
       } else {
         toast({
           title: "Success",
-          description: `Found ${flights.length} flights from ${fromCity} to ${toCity}`,
+          description: `Found ${validFlights.length} flights from ${fromCity} to ${toCity}`,
           type: "success"
         })
       }
@@ -195,6 +193,7 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
         description: error instanceof Error ? error.message : "Failed to search flights",
         type: "error"
       })
+      setFlights([])
     } finally {
       setIsLoading(false)
     }
@@ -204,6 +203,10 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
     const temp = fromCity
     setFromCity(toCity)
     setToCity(temp)
+  }
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>, field: keyof BookingFormState) => {
+    setBookingForm((prev: BookingFormState) => ({ ...prev, [field]: e.target.value }))
   }
 
   return (
@@ -218,103 +221,47 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div className="space-y-2">
                 <Label htmlFor="from">From</Label>
-                {loadingCities ? (
-                  <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Loading cities...</span>
-                  </div>
-                ) : (
-                  <Select value={fromCity} onValueChange={setFromCity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select departure city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cities.map((city) => (
-                        <SelectItem key={city} value={city}>
-                          {city}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={fromCity} onValueChange={setFromCity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select departure city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2 relative">
                 <Label htmlFor="to">To</Label>
-                {loadingCities ? (
-                  <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Loading cities...</span>
-                  </div>
-                ) : (
-                  <Select value={toCity} onValueChange={setToCity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select destination city" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cities.map((city) => (
-                        <SelectItem key={city} value={city}>
-                          {city}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={toCity} onValueChange={setToCity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select destination city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="absolute -left-12 top-8 md:top-8 p-2"
                   onClick={swapCities}
-                  disabled={loadingCities}
                 >
                   <ArrowRightLeft className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="departure">Departure Date</Label>
-                <Input 
-                  id="departure" 
-                  type="date" 
-                  required 
-                  min={new Date().toISOString().split("T")[0]}
-                  value={departureDate}
-                  onChange={(e) => setDepartureDate(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="return">Return Date (Optional)</Label>
-                <Input 
-                  id="return" 
-                  type="date" 
-                  min={departureDate || new Date().toISOString().split("T")[0]}
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="passengers" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Passengers
-                </Label>
-                <Input 
-                  id="passengers" 
-                  type="number" 
-                  min="1" 
-                  max="9" 
-                  value={passengers}
-                  onChange={(e) => setPassengers(e.target.value)}
-                  required 
-                />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full md:w-auto" size="lg" disabled={isLoading || loadingCities}>
+            <Button type="submit" className="w-full md:w-auto" size="lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -334,8 +281,9 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
       {flights.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">Available Flights</h2>
-          {flights.map((flight) => (
-            <Card key={flight.flight.iata} className="p-4">
+          {flights.map((flight, index) => (
+            flight && flight.flight && flight.airline && flight.aircraft && flight.departure && flight.arrival ? (
+            <Card key={flight.flight.iata || index} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -363,7 +311,7 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button 
+                    <Button
                       onClick={() => setSelectedFlight(flight)}
                       variant="default"
                     >
@@ -383,7 +331,7 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
                         <Input
                           id="name"
                           value={bookingForm.passengerName}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, passengerName: e.target.value }))}
+                          onChange={(e) => handleInputChange(e, 'passengerName')}
                           placeholder="Enter your full name"
                         />
                       </div>
@@ -393,7 +341,7 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
                           id="email"
                           type="email"
                           value={bookingForm.passengerEmail}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, passengerEmail: e.target.value }))}
+                          onChange={(e) => handleInputChange(e, 'passengerEmail')}
                           placeholder="Enter your email"
                         />
                       </div>
@@ -402,12 +350,12 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
                         <Input
                           id="phone"
                           value={bookingForm.phoneNumber}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                          onChange={(e) => handleInputChange(e, 'phoneNumber')}
                           placeholder="Enter your phone number"
                         />
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={handleBooking}
                         disabled={isBooking || !bookingForm.passengerName || !bookingForm.passengerEmail || !bookingForm.phoneNumber}
                       >
@@ -425,6 +373,7 @@ export function FlightSearch({ onSearchResults }: FlightSearchProps) {
                 </Dialog>
               </div>
             </Card>
+             ) : null
           ))}
         </div>
       )}
