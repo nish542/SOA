@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { apiService, type Flight } from '@/lib/api';
+import { motion } from 'framer-motion';
+import { Loader2, Check, AlertCircle } from 'lucide-react';
 
 interface BookingFormProps {
   flight: Flight;
@@ -50,60 +52,87 @@ export default function BookingForm({ flight, onSuccess }: BookingFormProps) {
     }
   };
 
+  const inputClassName = "mt-1 block w-full p-3 border border-gray-200 rounded-lg transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-medium";
+  const labelClassName = "block text-sm font-semibold text-gray-700 mb-1";
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Passenger Name
-        </label>
-        <input
-          type="text"
-          required
-          value={formData.passengerName}
-          onChange={(e) => setFormData(prev => ({ ...prev, passengerName: e.target.value }))}
-          className="mt-1 block w-full p-2 border rounded"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Email Address
-        </label>
-        <input
-          type="email"
-          required
-          value={formData.passengerEmail}
-          onChange={(e) => setFormData(prev => ({ ...prev, passengerEmail: e.target.value }))}
-          className="mt-1 block w-full p-2 border rounded"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Seat Number
-        </label>
-        <input
-          type="text"
-          required
-          value={formData.seatNumber}
-          onChange={(e) => setFormData(prev => ({ ...prev, seatNumber: e.target.value }))}
-          className="mt-1 block w-full p-2 border rounded"
-        />
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded">
-          {error}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6 p-6 bg-white rounded-xl shadow-sm">
+        <div className="space-y-1">
+          <label className={labelClassName}>
+            Passenger Name
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.passengerName}
+            onChange={(e) => setFormData(prev => ({ ...prev, passengerName: e.target.value }))}
+            className={inputClassName}
+            placeholder="Enter passenger name"
+          />
         </div>
-      )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 disabled:bg-green-300"
-      >
-        {loading ? 'Processing...' : 'Book Flight'}
-      </button>
-    </form>
+        <div className="space-y-1">
+          <label className={labelClassName}>
+            Email Address
+          </label>
+          <input
+            type="email"
+            required
+            value={formData.passengerEmail}
+            onChange={(e) => setFormData(prev => ({ ...prev, passengerEmail: e.target.value }))}
+            className={inputClassName}
+            placeholder="Enter email address"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className={labelClassName}>
+            Seat Number
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.seatNumber}
+            onChange={(e) => setFormData(prev => ({ ...prev, seatNumber: e.target.value }))}
+            className={inputClassName}
+            placeholder="Enter seat number"
+          />
+        </div>
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2"
+          >
+            <AlertCircle className="h-5 w-5" />
+            <span>{error}</span>
+          </motion.div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-3 rounded-lg font-medium transition-all duration-200 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <>
+              <Check className="h-5 w-5" />
+              <span>Book Flight</span>
+            </>
+          )}
+        </button>
+      </form>
+    </motion.div>
   );
-} 
+}

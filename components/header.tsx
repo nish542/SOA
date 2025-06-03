@@ -46,9 +46,6 @@ export function Header() {
 
         <div className="flex items-center space-x-4">
           <ThemeToggle />
-          <Button variant="outline" size="sm" className="hidden md:inline-flex">
-            Sign In
-          </Button>
         </div>
       </div>
     </header>

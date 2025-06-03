@@ -24,11 +24,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <ToastProvider>
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+          <div className="flex flex-col min-h-screen bg-amber-100 dark:bg-gray-900 transition-colors duration-200">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
           </ToastProvider>
         </ThemeProvider>
       </body>
